@@ -1,7 +1,7 @@
 {
-    "timestamp":  "2025-08-21T18:46:30Z",
-    "minor":  0,
-    "full":  "1.0.10",
-    "patch":  10,
-    "major":  1
+  "full": "1.0.11",
+  "major": 1,
+  "timestamp": "2025-08-21T19:12:07Z",
+  "patch": 11,
+  "minor": 0
 }

@@ -1,0 +1,330 @@
+{
+  "exported_by": "test-manual-backup.ps1",
+  "version": "1.0.11",
+  "exported_at": "2025-08-21T19:12:07Z",
+  "test_mode": false,
+  "workflow": {
+    "createdAt": "2025-08-19T16:31:26.935Z",
+    "updatedAt": "2025-08-21T13:29:50Z",
+    "id": "yRP2Hvjq8RPNMwRx",
+    "name": "T2 Release Notes Analyzer",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "521ad591-1ee5-439c-97fe-4150d1042782",
+        "name": "T2 Release Notes Analyzer"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Hole alle PDF-Dateien aus dem T2-Releasenotes Ordner\nconst files = $input.all();\n\n// Prüfe ob Dateien gefunden wurden\nif (!files || files.length === 0) {\n  throw new Error('❌ Keine PDF-Dateien im T2-Releasenotes Ordner gefunden!');\n}\n\n// Sortiere nach Änderungsdatum (neueste zuerst)\nconst sortedFiles = files.sort((a, b) => {\n  const dateA = new Date(a.json.modifiedTime);\n  const dateB = new Date(b.json.modifiedTime);\n  return dateB - dateA; // Neueste zuerst\n});\n\n// Nimm die neueste Datei\nconst latestFile = sortedFiles[0].json;\nconst fileName = latestFile.name;\nconst fileId = latestFile.id;\nconst modifiedTime = latestFile.modifiedTime;\n\n// Log für Debugging\nconsole.log(`✅ Neueste Datei gefunden: ${fileName}`);\nconsole.log(`📅 Geändert am: ${modifiedTime}`);\nconsole.log(`📄 Gefunden ${files.length} PDF-Dateien insgesamt`);\n\n// Rückgabe für nächsten Node\nreturn [{\n  json: {\n    fileId: fileId,\n    fileName: fileName,\n    modifiedTime: modifiedTime,\n    totalFiles: files.length,\n    message: `Verarbeite neueste Datei: ${fileName}`\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "id": "67f1295e-d23b-4826-8fb5-e11372247f07",
+        "name": "Select Latest File"
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "resource": "fileFolder",
+          "queryString": "=",
+          "filter": {
+            "folderId": {
+              "__rl": true,
+              "value": "1283NbHOnqjjrbk9d1U8jqndTk-uvHT8b",
+              "mode": "list",
+              "cachedResultName": "T2-Releasenotes",
+              "cachedResultUrl": "https://drive.google.com/drive/folders/1283NbHOnqjjrbk9d1U8jqndTk-uvHT8b"
+            }
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          224,
+          0
+        ],
+        "id": "eb76f917-ec55-4542-a571-4fe2e177e7a5",
+        "name": "Get Latest PDF Files",
+        "credentials": {
+          "googleApi": {
+            "id": "CMtFeGPukCpUv9t7",
+            "name": "Google Service Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "authentication": "serviceAccount",
+          "operation": "download",
+          "fileId": {
+            "__rl": true,
+            "value": "={{ $json.fileId }}",
+            "mode": "id"
+          },
+          "options": {
+            "fileName": "={{ $json.fileName }}"
+          }
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          672,
+          0
+        ],
+        "id": "89dcc16a-9d35-4fef-ad0f-a0760cee30da",
+        "name": "Download file",
+        "credentials": {
+          "googleApi": {
+            "id": "CMtFeGPukCpUv9t7",
+            "name": "Google Service Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-5",
+            "mode": "list",
+            "cachedResultName": "GPT-5"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "Bitte folgenden Prompt für Zusammenfassungen ausführen: Dieses GPT ist darauf spezialisiert, Texte, Artikel und Dateien prägnant und strukturiert zusammenzufassen. Nachdem die Datei bereitgestellt wurde soll folgendes Format verwendet werden: Analytische Zusammenfassung – mit kritischer Bewertung. Die Zusammenfassung soll wörtlich-neutral erfolgen. - Bei englischen Texten: Wird die Sprache automatisch erkannt. Es erfolgt zuerst eine Übersetzung ins Deutsche und die Zusammenfassen erfolgt auf Deutsch. Der verwendete Prompt zu dieser Zusammenfassung solll angehängt werden. Kontextabsicherung: - Das GPT prüft bei jedem Text automatisch, ob es sich um technische Inhalte, wie z. B. Prompt-Engineering, KI-Modellvergleiche oder API-Tests handelt. - Es klassifiziert den Text intern (z. B. als „technisch\", „essayistisch\", „wissenschaftlich\") und passt Zusammenfassungston und Wortwahl entsprechend an. - Begriffe wie „Prompt\", „Model\", „API\", „GPT\" werden nie metaphorisch fehlinterpretiert. Fehlervermeidung: - Bevor eine Interpretation erfolgt, wird bei mehrdeutigen Begriffen (z. B. „Think Harder\") geprüft, ob es sich um technische Instruktionen oder sprachliche Metaphern handelt. - Bei Unsicherheiten benennt das GPT zunächst mögliche Kontexte und entscheidet sich anhand von Textsignalen für die plausibelste Lesart. Die Sprache ist stets sachlich, präzise und professionell. Interpretationen werden nur vorgenommen, wenn es durch den Kontext klar gerechtfertigt ist.",
+                "role": "system"
+              },
+              {
+                "content": "=={{ $json.analysisText }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1.8,
+        "position": [
+          928,
+          0
+        ],
+        "id": "74a75b3b-4895-4cae-8da3-c32dcfd63a00",
+        "name": "ChatGPT Analysis",
+        "credentials": {
+          "openAiApi": {
+            "id": "sIO6kUMNRfce4vqB",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fromEmail": "glienker@googlemail.com",
+          "toEmail": "roland.glienke@t-online.de",
+          "subject": "={{ $json.subject }}",
+          "html": "={{ $json.body }}",
+          "options": {
+            "attachments": "=[{\n  \"filename\": \"{{ $('Prepare Analysis Text').first().json.fileName }}\",\n  \"content\": \"{{ $('Download file').first().binary.data.data }}\",\n  \"contentType\": \"application/pdf\"\n}]"
+          }
+        },
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1408,
+          0
+        ],
+        "id": "d6deb98d-7f38-47a9-b7a2-c203e55df740",
+        "name": "Send Analysis Email",
+        "webhookId": "a8d77e98-8aa0-40a4-811d-a94b8018f102",
+        "credentials": {
+          "smtp": {
+            "id": "GYY3vXfz38Zbw1ho",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Erweiterte professionelle Version\nconst inputData = $input.first().json;\nlet chatGptResponse = '';\n\n// ChatGPT Response extrahieren\nif (inputData.message && inputData.message.content) {\n  chatGptResponse = inputData.message.content;\n} else if (inputData.content) {\n  chatGptResponse = inputData.content;\n} else {\n  chatGptResponse = 'ChatGPT Response konnte nicht extrahiert werden.';\n}\n\nconst fileName = $('Prepare Analysis Text').first().json.fileName;\nconst currentDate = new Date().toLocaleDateString('de-DE');\nconst currentTime = new Date().toLocaleTimeString('de-DE');\n\n// Dokument-Typ-Erkennung\nfunction detectDocumentType(filename) {\n  if (filename.includes('udfs')) return { type: 'UDFS', icon: '📋', description: 'User Detailed Functional Specifications', color: '#007cba' };\n  if (filename.includes('uhb')) return { type: 'UHB', icon: '📖', description: 'User Handbook', color: '#28a745' };\n  if (filename.includes('release')) return { type: 'Release Notes', icon: '🔄', description: 'Release Documentation', color: '#ffc107' };\n  return { type: 'ECB Document', icon: '📄', description: 'ECB Technical Documentation', color: '#6c757d' };\n}\n\nconst docType = detectDocumentType(fileName);\n\n// Erweiterte Qualitätsbewertung\nfunction assessQuality(text) {\n  const wordCount = text.split(/\\s+/).length;\n  const hasStructure = text.includes('Klassifikation') || text.includes('Bewertung');\n  const hasRecommendations = text.includes('Empfehlungen') || text.includes('Empfehlung');\n  const hasRisks = text.includes('Risiken') || text.includes('Risiko');\n  const hasTechnical = text.includes('T2') || text.includes('ECB') || text.includes('TARGET');\n  \n  let score = 0;\n  if (wordCount > 500) score += 20;\n  if (wordCount > 1000) score += 20;\n  if (hasStructure) score += 20;\n  if (hasRecommendations) score += 15;\n  if (hasRisks) score += 15;\n  if (hasTechnical) score += 10;\n  \n  let confidence = 'Niedrig';\n  let confidenceColor = '#dc3545';\n  if (score >= 80) { confidence = 'Sehr hoch'; confidenceColor = '#28a745'; }\n  else if (score >= 60) { confidence = 'Hoch'; confidenceColor = '#007cba'; }\n  else if (score >= 40) { confidence = 'Mittel'; confidenceColor = '#ffc107'; }\n  \n  return { score, confidence, confidenceColor, wordCount, hasStructure, hasRecommendations, hasRisks };\n}\n\nconst quality = assessQuality(chatGptResponse);\n\n// Intelligente Text-Formatierung\nfunction intelligentFormat(text) {\n  return text\n    // Headers hervorheben\n    .replace(/^([A-ZÄÖÜ][^:\\n]*):$/gm, '<h3 style=\"color: #007cba; margin: 20px 0 10px 0; padding: 8px 12px; background: linear-gradient(135deg, #e3f2fd, #f0f8ff); border-left: 4px solid #007cba; border-radius: 5px;\">🔹 $1</h3>')\n    \n    // Bold text mit Highlighting\n    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong style=\"color: #007cba; background-color: #f0f8ff; padding: 2px 4px; border-radius: 3px;\">$1</strong>')\n    \n    // Risiken und Empfehlungen hervorheben\n    .replace(/\\b(Risiko|Gefahr|Achtung|Warnung|Kritisch)\\b/gi, '<span style=\"background: linear-gradient(135deg, #fff3cd, #ffeaa7); color: #856404; padding: 2px 6px; border-radius: 3px; font-weight: 600;\">⚠️ $1</span>')\n    .replace(/\\b(Empfehlung|Lösung|Maßnahme|Sofortmaßnahme)\\b/gi, '<span style=\"background: linear-gradient(135deg, #d4edda, #c3e6cb); color: #155724; padding: 2px 6px; border-radius: 3px; font-weight: 600;\">✅ $1</span>')\n    .replace(/\\b(T2|ECB|TARGET|RTGS|CLM)\\b/g, '<span style=\"background-color: #e3f2fd; color: #007cba; padding: 1px 4px; border-radius: 2px; font-weight: 600;\">$1</span>')\n    \n    // Listen formatieren\n    .replace(/^- ([^:\\n]+):/gm, '<h4 style=\"color: #495057; margin: 15px 0 8px 0; padding: 6px 10px; background-color: #f8f9fa; border-left: 3px solid #007cba; border-radius: 3px;\">▪️ $1:</h4>')\n    .replace(/^- ([^:\\n]+)$/gm, '<li style=\"margin: 6px 0; color: #495057; line-height: 1.5;\">$1</li>')\n    \n    // Paragraphen\n    .replace(/\\n\\n/g, '</p><p style=\"margin: 15px 0; line-height: 1.7; text-align: justify;\">')\n    .replace(/\\n/g, '<br>');\n}\n\nconst formattedAnalysis = intelligentFormat(chatGptResponse);\n\n// Workflow-ID generieren\nconst workflowId = 'T2-' + Date.now().toString(36).toUpperCase();\nconst buildVersion = new Date().getFullYear() + '.' + String(new Date().getMonth() + 1).padStart(2, '0') + '.' + String(new Date().getDate()).padStart(2, '0');\n\nconst emailSubject = `📊 ${docType.type} Analyse: ${fileName.replace(/^ecb\\./, '').replace(/\\.en\\.pdf$/, '')} [${currentDate}]`;\n\n// Ultra-professionelle E-Mail mit allen Features\nconst emailBody = `\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { \n      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; \n      line-height: 1.6; \n      color: #333; \n      max-width: 900px; \n      margin: 0 auto; \n      padding: 20px;\n      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);\n    }\n    .container {\n      background: white;\n      padding: 30px;\n      border-radius: 15px;\n      box-shadow: 0 15px 35px rgba(0,0,0,0.1);\n      position: relative;\n      overflow: hidden;\n    }\n    .header { \n      background: linear-gradient(135deg, #007cba 0%, #0056b3 100%);\n      color: white; \n      padding: 30px; \n      border-radius: 12px; \n      margin-bottom: 30px; \n      text-align: center;\n      position: relative;\n      overflow: hidden;\n    }\n    .header::before {\n      content: '';\n      position: absolute;\n      top: -50%;\n      left: -50%;\n      width: 200%;\n      height: 200%;\n      background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px);\n      animation: shimmer 15s linear infinite;\n    }\n    @keyframes shimmer {\n      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }\n      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }\n    }\n    .metadata-grid { \n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n      gap: 20px;\n      margin: 25px 0;\n    }\n    .metadata-card {\n      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);\n      padding: 20px;\n      border-radius: 10px;\n      border-left: 4px solid ${docType.color};\n      box-shadow: 0 4px 15px rgba(0,0,0,0.06);\n      transition: all 0.3s ease;\n      position: relative;\n    }\n    .metadata-card:hover {\n      transform: translateY(-3px);\n      box-shadow: 0 8px 25px rgba(0,0,0,0.12);\n    }\n    .stats-dashboard {\n      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);\n      padding: 25px;\n      border-radius: 12px;\n      margin: 25px 0;\n      border: 1px solid #dee2e6;\n    }\n    .stats-grid {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));\n      gap: 15px;\n      margin-top: 15px;\n    }\n    .stat-item {\n      text-align: center;\n      padding: 15px 10px;\n      background: white;\n      border-radius: 8px;\n      box-shadow: 0 2px 8px rgba(0,0,0,0.04);\n      transition: transform 0.2s ease;\n    }\n    .stat-item:hover {\n      transform: scale(1.05);\n    }\n    .stat-number {\n      display: block;\n      font-size: 24px;\n      font-weight: 700;\n      color: #007cba;\n      margin-bottom: 5px;\n    }\n    .stat-label {\n      font-size: 11px;\n      color: #6c757d;\n      text-transform: uppercase;\n      letter-spacing: 0.5px;\n    }\n    .analysis-section { \n      margin: 30px 0; \n      padding: 25px;\n      background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);\n      border-radius: 12px;\n      box-shadow: 0 4px 16px rgba(0,0,0,0.06);\n    }\n    .quality-indicator {\n      display: inline-flex;\n      align-items: center;\n      padding: 6px 12px;\n      border-radius: 20px;\n      font-weight: 600;\n      font-size: 13px;\n      color: white;\n      background-color: ${quality.confidenceColor};\n      margin-left: 8px;\n    }\n    .doc-type-badge {\n      display: inline-flex;\n      align-items: center;\n      background: ${docType.color};\n      color: white;\n      padding: 8px 15px;\n      border-radius: 20px;\n      font-size: 13px;\n      font-weight: 600;\n      margin-top: 10px;\n    }\n    .attachment-notice {\n      background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);\n      padding: 20px;\n      border-radius: 10px;\n      margin: 25px 0;\n      border-left: 5px solid #28a745;\n      box-shadow: 0 3px 12px rgba(40,167,69,0.1);\n    }\n    .footer { \n      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);\n      padding: 25px;\n      border-radius: 10px;\n      text-align: center;\n      font-size: 13px; \n      color: #6c757d; \n      border-top: 4px solid #007cba;\n      margin-top: 30px;\n    }\n    h1 { margin: 0; font-size: 26px; position: relative; z-index: 1; }\n    h2 { color: #007cba; margin-top: 0; font-size: 20px; }\n    .highlight { \n      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); \n      padding: 4px 8px; \n      border-radius: 5px; \n      font-weight: 600;\n      color: #856404;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>${docType.icon} T2 Release Notes Analyse</h1>\n      <p style=\"margin: 15px 0 0 0; opacity: 0.9; font-size: 16px; position: relative; z-index: 1;\">\n        KI-gestützte ECB-Dokumentenanalyse • Workflow: ${workflowId}\n      </p>\n      <div class=\"doc-type-badge\">\n        ${docType.icon} ${docType.type} - ${docType.description}\n      </div>\n    </div>\n    \n    <div class=\"metadata-grid\">\n      <div class=\"metadata-card\">\n        <h4 style=\"margin: 0 0 12px 0; color: ${docType.color};\">📄 Dokument</h4>\n        <div style=\"font-size: 14px;\"><strong>Datei:</strong> ${fileName}</div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Typ:</strong> ${docType.description}</div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Status:</strong> <span style=\"color: #28a745; font-weight: 600;\">✅ Analysiert</span></div>\n      </div>\n      \n      <div class=\"metadata-card\">\n        <h4 style=\"margin: 0 0 12px 0; color: ${docType.color};\">🕒 Verarbeitung</h4>\n        <div style=\"font-size: 14px;\"><strong>Datum:</strong> ${currentDate}</div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Zeit:</strong> ${currentTime}</div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Engine:</strong> ChatGPT-5</div>\n      </div>\n      \n      <div class=\"metadata-card\">\n        <h4 style=\"margin: 0 0 12px 0; color: ${docType.color};\">📊 Qualität</h4>\n        <div style=\"font-size: 14px;\"><strong>Vertrauen:</strong>\n          <span class=\"quality-indicator\">${quality.confidence}</span>\n        </div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Score:</strong> ${quality.score}/100</div>\n        <div style=\"margin-top: 8px; font-size: 14px;\"><strong>Umfang:</strong> ${quality.wordCount} Wörter</div>\n      </div>\n    </div>\n\n    <div class=\"stats-dashboard\">\n      <h4 style=\"margin: 0 0 5px 0; color: #007cba;\">📈 Analyse-Metriken</h4>\n      <div class=\"stats-grid\">\n        <div class=\"stat-item\">\n          <span class=\"stat-number\">${quality.wordCount}</span>\n          <span class=\"stat-label\">Wörter</span>\n        </div>\n        <div class=\"stat-item\">\n          <span class=\"stat-number\">${quality.score}</span>\n          <span class=\"stat-label\">Qualität</span>\n        </div>\n        <div class=\"stat-item\">\n          <span class=\"stat-number\">${quality.hasStructure ? '✅' : '❌'}</span>\n          <span class=\"stat-label\">Struktur</span>\n        </div>\n        <div class=\"stat-item\">\n          <span class=\"stat-number\">${quality.hasRecommendations ? '✅' : '❌'}</span>\n          <span class=\"stat-label\">Empfehlungen</span>\n        </div>\n        <div class=\"stat-item\">\n          <span class=\"stat-number\">${quality.hasRisks ? '✅' : '❌'}</span>\n          <span class=\"stat-label\">Risiken</span>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"attachment-notice\">\n      <h4 style=\"margin: 0 0 10px 0; color: #28a745;\">📎 PDF-Anhang verfügbar</h4>\n      <p style=\"margin: 0; line-height: 1.5;\">\n        Die vollständige PDF-Datei ist dieser E-Mail als Anhang beigefügt. \n        Die folgende Analyse wurde durch KI-basierte Auswertung des Dateinamens und ECB-Expertenwissen erstellt.\n      </p>\n    </div>\n    \n    <div class=\"analysis-section\">\n      <h2>🔍 Detaillierte Fachanalyse</h2>\n      <div style=\"line-height: 1.8;\">\n        <p style=\"margin: 15px 0; line-height: 1.7; text-align: justify;\">${formattedAnalysis}</p>\n      </div>\n    </div>\n    \n    <div class=\"footer\">\n      <div style=\"margin-bottom: 15px;\">\n        <strong style=\"font-size: 15px;\">⚡ n8n T2 Release Notes Analyzer</strong><br>\n        <span class=\"highlight\">Powered by ChatGPT-5 • ECB-Document Specialist</span>\n      </div>\n      <div style=\"font-size: 12px; opacity: 0.8;\">\n        🔒 Vertraulich • 📧 Automatisch erstellt • 🕒 ${new Date().toLocaleString('de-DE')}\n      </div>\n      <div style=\"margin-top: 12px; font-size: 11px; color: #adb5bd;\">\n        Workflow-ID: ${workflowId} • Version: ${buildVersion} • Build: Professional\n      </div>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    subject: emailSubject,\n    body: emailBody,\n    fileName: fileName,\n    docType: docType.type,\n    qualityScore: quality.score,\n    wordCount: quality.wordCount,\n    workflowId: workflowId,\n    status: 'ready_to_send'\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1232,
+          0
+        ],
+        "id": "d4a90ef4-9f72-4621-b5a1-2e25ec69e581",
+        "name": "Format Message"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Hole die PDF-Datei\nconst fileName = $('Select Latest File').first().json.fileName;\n\n// Für PDF-Analyse verwenden wir Dateiname + Metadaten\nconst analysisText = `\nT2 Release Notes Datei: ${fileName}\n\nDatei-Informationen:\n- Name: ${fileName}\n- Typ: PDF-Dokument\n- Quelle: ECB T2-System Release Notes\n\nBitte analysiere diese T2 Release Notes basierend auf dem Dateinamen und deinem Wissen über ECB T2-Systeme.\n`;\n\nconsole.log('📄 Bereite Analyse vor für:', fileName);\n\nreturn [{\n  json: {\n    fileName: fileName,\n    analysisText: analysisText,\n    status: 'ready_for_chatgpt'\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          816,
+          240
+        ],
+        "id": "c4ee17a4-0cc8-406f-a30e-8d9b495c9345",
+        "name": "Prepare Analysis Text"
+      }
+    ],
+    "connections": {
+      "T2 Release Notes Analyzer": {
+        "main": [
+          [
+            {
+              "node": "Get Latest PDF Files",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Latest PDF Files": {
+        "main": [
+          [
+            {
+              "node": "Select Latest File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Select Latest File": {
+        "main": [
+          [
+            {
+              "node": "Download file",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download file": {
+        "main": [
+          [
+            {
+              "node": "Prepare Analysis Text",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "ChatGPT Analysis": {
+        "main": [
+          [
+            {
+              "node": "Format Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Message": {
+        "main": [
+          [
+            {
+              "node": "Send Analysis Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Analysis Text": {
+        "main": [
+          [
+            {
+              "node": "ChatGPT Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "4fa181a3-2fb9-4134-af81-8921a24ff21c",
+    "triggerCount": 0,
+    "shared": [
+      {
+        "createdAt": "2025-08-19T16:31:26.939Z",
+        "updatedAt": "2025-08-19T16:31:26.939Z",
+        "role": "workflow:owner",
+        "workflowId": "yRP2Hvjq8RPNMwRx",
+        "projectId": "hI5nodA0anKykWj9",
+        "project": {
+          "createdAt": "2025-08-18T12:01:19.653Z",
+          "updatedAt": "2025-08-18T12:03:02.255Z",
+          "id": "hI5nodA0anKykWj9",
+          "name": "Roland Glienke <roland.glienke@t-online.de>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "projectRelations": [
+            {
+              "createdAt": "2025-08-18T12:01:19.653Z",
+              "updatedAt": "2025-08-18T12:01:19.653Z",
+              "role": "project:personalOwner",
+              "userId": "1e727934-7b63-4ee2-8683-40971a0835f9",
+              "projectId": "hI5nodA0anKykWj9",
+              "user": {
+                "createdAt": "2025-08-18T12:01:19.402Z",
+                "updatedAt": "2025-08-21T12:19:57Z",
+                "id": "1e727934-7b63-4ee2-8683-40971a0835f9",
+                "email": "roland.glienke@t-online.de",
+                "firstName": "Roland",
+                "lastName": "Glienke",
+                "personalizationAnswers": {
+                  "version": "v4",
+                  "personalization_survey_submitted_at": "2025-08-18T12:03:19.772Z",
+                  "personalization_survey_n8n_version": "1.106.3",
+                  "companyType": "personal",
+                  "reportedSource": "google"
+                },
+                "settings": {
+                  "userActivated": true,
+                  "easyAIWorkflowOnboarded": true,
+                  "firstSuccessfulWorkflowId": "AqGTCcrHgUGbLYSq",
+                  "userActivatedAt": 1755627924165
+                },
+                "role": "global:owner",
+                "disabled": false,
+                "mfaEnabled": false,
+                "lastActiveAt": "2025-08-21",
+                "isPending": false
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "tags": []
+  }
+}
